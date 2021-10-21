@@ -1,0 +1,15 @@
+{
+  "name": "pavel/chatapi",
+  "description": "description",
+  "minimum-stability": "stable",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Pavel",
+      "email": "vetlyugaev@yandex.com"
+    }
+  ],
+  "require": {
+    "sl4mmer/phpcent": "dev-master"
+  }
+}
