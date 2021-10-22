@@ -1,3 +1,6 @@
 /.idea
 /composer/vendor
 /composer/composer.lock
+/node_modules
+/log
+package-lock.json

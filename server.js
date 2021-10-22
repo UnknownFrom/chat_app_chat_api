@@ -1,7 +1,9 @@
 import ws from "ws";
-const {Server} = ws;
+
 import {v4 as uuid} from "uuid";
 import {writeFile, readFileSync, existsSync} from "fs";
+
+const {Server} = ws;
 const clients = {};
 const log = existsSync('log') && readFileSync('log', 'utf-8');
 const messages = log ? JSON.parse(log) : [];
