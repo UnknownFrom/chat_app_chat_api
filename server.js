@@ -3,10 +3,13 @@ import {v4 as uuid} from "uuid";
 
 import {writeFile, readFileSync, existsSync} from "fs";
 let usersList = [];
-
+const log = existsSync('log') && readFileSync('log', 'utf-8');
+const clients = {};
 const server = new ws.Server({port: 8000});
 
 server.on('connection', (ws) => {
+    const id = uuid();
+    clients[id] = ws;
     ws.on('message', message => {
         const messages = JSON.parse(message);
         const name = messages.name;
@@ -33,15 +36,17 @@ server.on('connection', (ws) => {
             }
         });
     });
-    ws.onclose = event => {
-        server.clients.forEach(client => {
-            if (client.readyState === ws.OPEN) {
-                const mess = event.reason;
-                client.send(JSON.stringify({mess, usersList}));
-            }
-        });
-    };
 });
+
+process.on('SIGINT', () => {
+    server.close();
+    writeFile('log', JSON.stringify(log), err => {
+        if (err) {
+            console.log(err);
+        }
+        process.exit();
+    })
+})
 
 
 /*import ws from "ws";
