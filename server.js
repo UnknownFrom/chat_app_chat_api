@@ -6,7 +6,7 @@ connectToBD();
 
 import {writeFile, readFileSync, existsSync} from "fs";
 
-let usersList = [];
+let usersList = new Map();
 //const log = existsSync('log') && readFileSync('log', 'utf-8');
 const clients = {};
 const server = new ws.Server({port: 8000});
@@ -21,19 +21,47 @@ server.on('connection', (ws) => {
     /* обработка сообщения */
     ws.on('message', message => {
         const messages = JSON.parse(message);
+        console.log(messages);
         const fullName = messages.name;
-        const status = messages.status;
+        const id = messages.id;
+        //const status = messages.status;
         const mess = messages.message;
-        const event = messages.event;
-        if(event === 'add_user')
+        const event = messages._event;
+        switch (event)
         {
-
+            case 'add_user':
+                addMessage([fullName, mess])
+                usersList.set(id, fullName);
+                console.log(usersList);
+                server.clients.forEach(client => {
+                    if (client.readyState === ws.OPEN) {
+                        client.send(JSON.stringify([{usersList: usersList, event: event}], replacer));
+                    }
+                });
+                break;
+            case 'disconnect':
+                addMessage([fullName, mess])
+                usersList.delete(id);
+                server.clients.forEach(client => {
+                    if (client.readyState === ws.OPEN) {
+                        client.send(JSON.stringify([{fullName: fullName, message: mess, usersList: usersList, event: event}], replacer));
+                    }
+                });
+                break;
+            case 'send_message':
+                addMessage([fullName, mess])
+                server.clients.forEach(client => {
+                    if (client.readyState === ws.OPEN) {
+                        client.send(JSON.stringify([{fullName: fullName, message: mess, event: event}], replacer));
+                    }
+                });
+                break;
         }
         //console.log(messages);
         /* добавление письма в базу */
-        addMessage([fullName, mess])
+        //addMessage([fullName, mess])
 
-        /* добавление или удаление пользователя */
+        /*/!* добавление или удаление пользователя *!/
         if (status === 'online') {
             //console.log(usersList);
             if (usersList.indexOf(fullName) === -1) {
@@ -46,15 +74,24 @@ server.on('connection', (ws) => {
             }
         }
         console.log(usersList);
-        /* отправление сообщений пользователям */
+        /!* отправление сообщений пользователям *!/
         server.clients.forEach(client => {
             if (client.readyState === ws.OPEN) {
                 client.send(JSON.stringify([{fullName: fullName, message: mess, usersList: usersList}] ));
             }
-        });
+        });*/
     });
 });
-
+function replacer(key, value) {
+    if(value instanceof Map) {
+        return {
+            dataType: 'Map',
+            value: Array.from(value.entries()), // or with spread: value: [...value]
+        };
+    } else {
+        return value;
+    }
+}
 /*process.on('SIGINT', () => {
     server.close();
     writeFile('log', JSON.stringify(log), err => {
@@ -80,7 +117,9 @@ function getBaseMessage(ws)
 {
     connection.query("SELECT * FROM message",
         function(err, results) {
-            ws.send(JSON.stringify(results));
+            results["event"] = 'send_message';
+            console.log(results);
+            ws.send(JSON.stringify(results, replacer));
             //console.log(results); // собственно данные
         });
 }
