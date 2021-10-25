@@ -15,7 +15,7 @@ server.on('connection', (ws) => {
     /* обработка сообщения */
     ws.on('message', message => {
         const messages = JSON.parse(message);
-        console.log(messages);
+        //console.log(messages);
         const fullName = messages.name;
         const id = messages.id;
         //const status = messages.status;
@@ -25,7 +25,7 @@ server.on('connection', (ws) => {
             case 'add_user':
                 //addMessage([fullName, mess])
                 usersList.set(id, fullName);
-                console.log(usersList);
+                //console.log(usersList);
                 server.clients.forEach(client => {
                     if (client.readyState === ws.OPEN) {
                         client.send(JSON.stringify([{
@@ -67,7 +67,7 @@ function replacer(key, value) {
     if (value instanceof Map) {
         return {
             dataType: 'Map',
-            value: Array.from(value.entries()), // or with spread: value: [...value]
+            value: Array.from(value.entries()),
         };
     } else {
         return value;
@@ -85,7 +85,6 @@ function replacer(key, value) {
 })*/
 
 
-
 function connectToBD() {
     connection = mysql.createConnection({
         host: "localhost",
@@ -98,10 +97,8 @@ function connectToBD() {
 
 function getDataBaseMessages(ws) {
     connection.query("SELECT * FROM message", function (err, results) {
-            //results["event"] = 'send_message';
-            //console.log(results);
-            ws.send(JSON.stringify(results, replacer));
-        });
+        ws.send(JSON.stringify(results, replacer));
+    });
 }
 
 function addMessage(data) {
