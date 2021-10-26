@@ -12,6 +12,7 @@
   "dependencies": {
     "uuid": "^8.3.2",
     "ws": "^7.5.3",
-    "mysql2": "^2.3.2"
+    "mysql2": "^2.3.2",
+    "http": "^0.0.1-security"
   }
 }

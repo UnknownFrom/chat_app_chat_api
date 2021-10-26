@@ -1,7 +1,7 @@
 import ws from "ws";
 //import {v4 as uuid} from "uuid";
 import mysql from "mysql2";
-
+import http from "http";
 let connection;
 connectToBD();
 let usersList = new Map();
@@ -11,7 +11,7 @@ const server = new ws.Server({port: 8000});
 server.on('connection', (ws) => {
     //const id = uuid();
     //clients[id] = ws;
-    getDataBaseMessages(ws);
+    //getDataBaseMessages(ws);
     /* обработка сообщения */
     ws.on('message', message => {
         const messages = JSON.parse(message);
@@ -59,6 +59,30 @@ server.on('connection', (ws) => {
                     }
                 });
                 break;
+            case 'check_token':
+                const token = messages.token;
+                console.log(token);
+                const options = {
+                    hostname: 'users.api.loc',
+                    port: '80',
+                    path: '/token',
+                    method: 'POST',
+                    dataType: "JSON",
+                    data: {
+                        token: token
+                    },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+                const req = http.request(options, (response) => {
+                    console.log(`statusCode: ${response.statusCode}`)
+                    console.log(`data: ${response.data}`);
+                })
+                req.on('error', (error) => {
+                    console.log(error);
+                })
+                getDataBaseMessages(ws);
         }
     });
 });
