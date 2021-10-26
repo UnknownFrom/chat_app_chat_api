@@ -18,79 +18,88 @@ server.on('connection', (ws) => {
     /* обработка сообщения */
     ws.on('message', message => {
         const messages = JSON.parse(message);
-        //console.log(messages);
-        const fullName = messages.name;
-        const id = messages.id;
-        //const status = messages.status;
-        const mess = messages.message;
         const event = messages._event;
         switch (event) {
             case 'add_user':
-                //addMessage([fullName, mess])
-                usersList.set(id, fullName);
-                //console.log(usersList);
-                server.clients.forEach(client => {
-                    if (client.readyState === ws.OPEN) {
-                        client.send(JSON.stringify([{
-                            fullName: fullName,
-                            message: mess,
-                            usersList: usersList,
-                            event: event
-                        }], replacer));
-                    }
-                });
+                addUser(messages);
                 break;
             case 'disconnect':
-                //disconnect(messages);
-                //addMessage([fullName, mess])
-                usersList.delete(id);
-                server.clients.forEach(client => {
-                    if (client.readyState === ws.OPEN) {
-                        client.send(JSON.stringify([{
-                            fullName: fullName,
-                            message: mess,
-                            usersList: usersList,
-                            event: event
-                        }], replacer));
-                    }
-                });
+                disconnect(messages);
                 break;
             case 'send_message':
-                addMessage([fullName, mess])
-                server.clients.forEach(client => {
-                    if (client.readyState === ws.OPEN) {
-                        client.send(JSON.stringify([{fullName: fullName, message: mess, event: event}], replacer));
-                    }
-                });
+                sendMessage(messages);
                 break;
             case 'check_token':
-                const token = messages.token;
-                const data = jwtDecode(token);
-                let result;
-                console.log(JSON.stringify({id: data.id}));
-                fetch('http://users.api.loc/id', {
-                    method: 'POST',
-                    body: JSON.stringify({id: data.id})
-                })
-                    .then(response => response.json())
-                    .then((json) => {
-                        if (json.status !== true) {
-                            ws.close();
-                        } else {
-                            getDataBaseMessages(ws);
-                        }
-                    });
-            //console.log(result);
-
+                checkToken(messages,ws);
         }
     });
 });
 
-function disconnect(messages)
-{
-    //console.log(messages);
+function checkToken(messages, ws) {
+    const token = messages.token;
+    const data = jwtDecode(token);
+    console.log(JSON.stringify({id: data.id}));
+    fetch('http://users.api.loc/id', {
+        method: 'POST',
+        body: JSON.stringify({id: data.id})
+    })
+        .then(response => response.json())
+        .then((json) => {
+            if (json.status !== true) {
+                ws.close();
+            } else {
+                /* отправка данных для добавления пользователя в чат */
+                console.log(json);
+                messages['name'] = json.login;
+                messages['id'] = json.id;
+                messages['message'] = ' подключился к чату';
+                messages['_event'] = 'add_user';
+                addUser(messages)
+                getDataBaseMessages(ws);
+            }
+        });
+}
+
+function sendMessage(messages) {
+    const fullName = usersList.get(messages.id);
+    const mess = messages.message;
+    const event = messages._event;
+    addMessage([fullName, mess])
+    server.clients.forEach(client => {
+        if (client.readyState === ws.OPEN) {
+            client.send(JSON.stringify([{fullName: fullName, message: mess, event: event}], replacer));
+        }
+    });
+}
+
+function addUser(messages) {
     const fullName = messages.name;
     const id = messages.id;
+    //const status = messages.status;
+    const mess = messages.message;
+    const event = messages._event;
+    //addMessage([fullName, mess])
+    usersList.set(id, fullName);
+    server.clients.forEach(client => {
+        if (client.readyState === ws.OPEN) {
+            client.send(JSON.stringify([{
+                fullName: fullName,
+                id: id,
+                message: mess,
+                usersList: usersList,
+                event: event
+            }], replacer));
+        }
+    });
+}
+
+
+function disconnect(messages) {
+    //console.log(messages);
+    const id = messages.id;
+    const fullName = usersList.get(id);
+    console.log(id);
+    console.log(usersList.get('1'));
     //const status = messages.status;
     const mess = messages.message;
     const event = messages._event;
@@ -136,7 +145,7 @@ function getDataBaseMessages(ws) {
 }
 
 function addMessage(data) {
-    const sql = "INSERT INTO message (id, fullName, message, time) VALUES (NULL, ?, ?, current_date())";
+    const sql = "INSERT INTO message (id, fullName, message, time) VALUES (NULL, ?, ?, '234')";
     connection.query(sql, data, function (err, results) {
     });
 }
