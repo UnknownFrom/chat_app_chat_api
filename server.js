@@ -1,7 +1,10 @@
 import ws from "ws";
 //import {v4 as uuid} from "uuid";
 import mysql from "mysql2";
-import http from "http";
+//import http from "http";
+import fetch from "node-fetch";
+import jwtDecode from "jwt-decode";
+
 let connection;
 connectToBD();
 let usersList = new Map();
@@ -38,6 +41,7 @@ server.on('connection', (ws) => {
                 });
                 break;
             case 'disconnect':
+                //disconnect(messages);
                 //addMessage([fullName, mess])
                 usersList.delete(id);
                 server.clients.forEach(client => {
@@ -61,31 +65,48 @@ server.on('connection', (ws) => {
                 break;
             case 'check_token':
                 const token = messages.token;
-                console.log(token);
-                const options = {
-                    hostname: 'users.api.loc',
-                    port: '80',
-                    path: '/token',
+                const data = jwtDecode(token);
+                let result;
+                console.log(JSON.stringify({id: data.id}));
+                fetch('http://users.api.loc/id', {
                     method: 'POST',
-                    dataType: "JSON",
-                    data: {
-                        token: token
-                    },
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                }
-                const req = http.request(options, (response) => {
-                    console.log(`statusCode: ${response.statusCode}`)
-                    console.log(`data: ${response.data}`);
+                    body: JSON.stringify({id: data.id})
                 })
-                req.on('error', (error) => {
-                    console.log(error);
-                })
-                getDataBaseMessages(ws);
+                    .then(response => response.json())
+                    .then((json) => {
+                        if (json.status !== true) {
+                            ws.close();
+                        } else {
+                            getDataBaseMessages(ws);
+                        }
+                    });
+            //console.log(result);
+
         }
     });
 });
+
+function disconnect(messages)
+{
+    //console.log(messages);
+    const fullName = messages.name;
+    const id = messages.id;
+    //const status = messages.status;
+    const mess = messages.message;
+    const event = messages._event;
+    //addMessage([fullName, mess])
+    usersList.delete(id);
+    server.clients.forEach(client => {
+        if (client.readyState === ws.OPEN) {
+            client.send(JSON.stringify([{
+                fullName: fullName,
+                message: mess,
+                usersList: usersList,
+                event: event
+            }], replacer));
+        }
+    });
+}
 
 function replacer(key, value) {
     if (value instanceof Map) {
@@ -97,17 +118,6 @@ function replacer(key, value) {
         return value;
     }
 }
-
-/*process.on('SIGINT', () => {
-    server.close();
-    writeFile('log', JSON.stringify(log), err => {
-        if (err) {
-            console.log(err);
-        }
-        process.exit();
-    })
-})*/
-
 
 function connectToBD() {
     connection = mysql.createConnection({
@@ -126,9 +136,18 @@ function getDataBaseMessages(ws) {
 }
 
 function addMessage(data) {
-    const sql = "INSERT INTO message (id, fullName, message) VALUES (NULL, ?, ?)";
+    const sql = "INSERT INTO message (id, fullName, message, time) VALUES (NULL, ?, ?, current_date())";
     connection.query(sql, data, function (err, results) {
     });
 }
 
 
+/*process.on('SIGINT', () => {
+    server.close();
+    writeFile('log', JSON.stringify(log), err => {
+        if (err) {
+            console.log(err);
+        }
+        process.exit();
+    })
+})*/
