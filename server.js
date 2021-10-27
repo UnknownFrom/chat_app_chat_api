@@ -48,27 +48,30 @@ function checkToken(messages, ws) {
             if (json.status === false) {
                 ws.close();
             } else {
+                getDataBaseMessages(ws);
                 /* отправка данных для добавления пользователя в чат */
                 messages['name'] = json.login;
                 messages['id'] = json.id;
                 messages['message'] = ' подключился к чату';
                 messages['_event'] = 'add_user';
                 addUser(messages)
-                getDataBaseMessages(ws);
+
             }
         });
 }
 
 function sendMessage(messages) {
     const fullName = usersList.get(messages.id);
-    const mess = messages.message;
+    const message = messages.message;
     const event = messages._event;
-    addMessage([fullName, mess])
+    const time = getDate();
+    addMessage([fullName, message, time])
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
             client.send(JSON.stringify([{
-                fullName: fullName, 
-                message: mess, 
+                fullName: fullName,
+                message: message,
+                time: time,
                 event: event
             }], replacer));
         }
@@ -78,16 +81,16 @@ function sendMessage(messages) {
 function addUser(messages) {
     const fullName = messages.name;
     const id = messages.id;
-    const mess = messages.message;
+    const message = messages.message;
     const event = messages._event;
     usersList.set(id, fullName);
     console.log(usersList);
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
             client.send(JSON.stringify([{
-                fullName: fullName,
                 id: id,
-                message: mess,
+                fullName: fullName,
+                message: message,
                 usersList: usersList,
                 event: event
             }], replacer));
@@ -99,14 +102,14 @@ function addUser(messages) {
 function disconnect(messages) {
     const id = messages.id;
     const fullName = usersList.get(id);
-    const mess = messages.message;
+    const message = messages.message;
     const event = messages._event;
     usersList.delete(id);
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
             client.send(JSON.stringify([{
                 fullName: fullName,
-                message: mess,
+                message: message,
                 usersList: usersList,
                 event: event
             }], replacer));
@@ -127,32 +130,32 @@ function replacer(key, value) {
 
 function connectToBD() {
     connection = mysql.createConnection({
-        host: "localhost",
-        port: "8989",
-        user: "dev",
-        database: "chat",
-        password: "dev"
+        host: 'localhost',
+        port: '8989',
+        user: 'dev',
+        database: 'chat',
+        password: 'dev'
     });
 }
 
 function getDataBaseMessages(ws) {
-    connection.query("SELECT * FROM message", function (err, results) {
+    connection.query('SELECT * FROM message', function (err, results) {
         ws.send(JSON.stringify(results, replacer));
     });
 }
 
 function addMessage(data) {
-    const sql = "INSERT INTO message (id, fullName, message, time) VALUES (NULL, ?, ?, '234')";
+    getDate();
+    const sql = 'INSERT INTO message (id, fullName, message, time) VALUES (NULL, ?, ?, ?)';
     connection.query(sql, data, function (err, results) {
     });
 }
 
-/*process.on('SIGINT', () => {
-    server.close();
-    writeFile('log', JSON.stringify(log), err => {
-        if (err) {
-            console.log(err);
-        }
-        process.exit();
-    })
-})*/
+function getDate()
+{
+    let hours = new Date().getHours();
+    let minutes = new Date().getMinutes();
+    //const day = new Date().getDate();
+    //const month = new Date().getMonth();
+    return hours + ':' + minutes;
+}
