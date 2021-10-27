@@ -1,14 +1,11 @@
 import ws from "ws";
-//import {v4 as uuid} from "uuid";
 import mysql from "mysql2";
-//import http from "http";
 import fetch from "node-fetch";
 import jwtDecode from "jwt-decode";
 
 let connection;
 connectToBD();
-let usersList = new Map();
-//const clients = {};
+global.usersList = new Map();
 const server = new ws.Server({port: 8000});
 
 server.on('connection', (ws) => {
@@ -30,26 +27,28 @@ server.on('connection', (ws) => {
                 sendMessage(messages);
                 break;
             case 'check_token':
-                checkToken(messages,ws);
+                checkToken(messages, ws);
         }
     });
 });
 
 function checkToken(messages, ws) {
     const token = messages.token;
+    if (!token) {
+        ws.close();
+        return;
+    }
     const data = jwtDecode(token);
-    console.log(JSON.stringify({id: data.id}));
     fetch('http://users.api.loc/id', {
         method: 'POST',
         body: JSON.stringify({id: data.id})
     })
         .then(response => response.json())
         .then((json) => {
-            if (json.status !== true) {
+            if (json.status === false) {
                 ws.close();
             } else {
                 /* отправка данных для добавления пользователя в чат */
-                console.log(json);
                 messages['name'] = json.login;
                 messages['id'] = json.id;
                 messages['message'] = ' подключился к чату';
@@ -67,7 +66,11 @@ function sendMessage(messages) {
     addMessage([fullName, mess])
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
-            client.send(JSON.stringify([{fullName: fullName, message: mess, event: event}], replacer));
+            client.send(JSON.stringify([{
+                fullName: fullName, 
+                message: mess, 
+                event: event
+            }], replacer));
         }
     });
 }
@@ -75,11 +78,10 @@ function sendMessage(messages) {
 function addUser(messages) {
     const fullName = messages.name;
     const id = messages.id;
-    //const status = messages.status;
     const mess = messages.message;
     const event = messages._event;
-    //addMessage([fullName, mess])
     usersList.set(id, fullName);
+    console.log(usersList);
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
             client.send(JSON.stringify([{
@@ -95,15 +97,10 @@ function addUser(messages) {
 
 
 function disconnect(messages) {
-    //console.log(messages);
     const id = messages.id;
     const fullName = usersList.get(id);
-    console.log(id);
-    console.log(usersList.get('1'));
-    //const status = messages.status;
     const mess = messages.message;
     const event = messages._event;
-    //addMessage([fullName, mess])
     usersList.delete(id);
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
@@ -149,7 +146,6 @@ function addMessage(data) {
     connection.query(sql, data, function (err, results) {
     });
 }
-
 
 /*process.on('SIGINT', () => {
     server.close();
