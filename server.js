@@ -9,9 +9,6 @@ global.usersList = new Map();
 const server = new ws.Server({port: 8000});
 
 server.on('connection', (ws) => {
-    //const id = uuid();
-    //clients[id] = ws;
-    //getDataBaseMessages(ws);
     /* обработка сообщения */
     ws.on('message', message => {
         const messages = JSON.parse(message);
@@ -28,6 +25,9 @@ server.on('connection', (ws) => {
                 break;
             case 'check_token':
                 checkToken(messages, ws);
+                break;
+            case 'send_page':
+                getDataBaseMessages(messages, ws);
         }
     });
 });
@@ -48,14 +48,13 @@ function checkToken(messages, ws) {
             if (json.status === false) {
                 ws.close();
             } else {
-                getDataBaseMessages(ws);
                 /* отправка данных для добавления пользователя в чат */
                 messages['name'] = json.login;
                 messages['id'] = json.id;
                 messages['message'] = ' подключился к чату';
                 messages['_event'] = 'add_user';
+                getDataBaseMessages(messages, ws);
                 addUser(messages)
-
             }
         });
 }
@@ -68,12 +67,10 @@ function sendMessage(messages) {
     addMessage([fullName, message, time])
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
-            client.send(JSON.stringify([{
-                fullName: fullName,
-                message: message,
-                time: time,
+            client.send(JSON.stringify({
+                data: [{fullName, message, time}],
                 event: event
-            }], replacer));
+            }, replacer));
         }
     });
 }
@@ -83,21 +80,17 @@ function addUser(messages) {
     const id = messages.id;
     const message = messages.message;
     const event = messages._event;
+
     usersList.set(id, fullName);
-    console.log(usersList);
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
-            client.send(JSON.stringify([{
-                id: id,
-                fullName: fullName,
-                message: message,
-                usersList: usersList,
+            client.send(JSON.stringify({
+                data: [{id, fullName, message, usersList}],
                 event: event
-            }], replacer));
+            }, replacer));
         }
     });
 }
-
 
 function disconnect(messages) {
     const id = messages.id;
@@ -107,12 +100,10 @@ function disconnect(messages) {
     usersList.delete(id);
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
-            client.send(JSON.stringify([{
-                fullName: fullName,
-                message: message,
-                usersList: usersList,
+            client.send(JSON.stringify({
+                data: [{fullName, message, usersList}],
                 event: event
-            }], replacer));
+            }, replacer));
         }
     });
 }
@@ -138,9 +129,13 @@ function connectToBD() {
     });
 }
 
-function getDataBaseMessages(ws) {
-    connection.query('SELECT * FROM message', function (err, results) {
-        ws.send(JSON.stringify(results, replacer));
+function getDataBaseMessages(messages, ws) {
+    let limit = messages.limit; /* сколько на страницу выводить */
+    let offset = limit * messages._offset + 1;
+    let sql = 'SELECT * FROM message ORDER BY id DESC limit ?, ?';
+    let data = [offset, limit]
+    connection.query(sql, data, function (err, data) {
+        ws.send(JSON.stringify({data, event: 'send_page'}, replacer));
     });
 }
 
@@ -153,9 +148,14 @@ function addMessage(data) {
 
 function getDate()
 {
-    let hours = new Date().getHours();
-    let minutes = new Date().getMinutes();
-    //const day = new Date().getDate();
-    //const month = new Date().getMonth();
-    return hours + ':' + minutes;
+    let options = {
+        //year: 'numeric',
+        //month: 'numeric',
+        //day: 'numeric',
+        weekday: 'long',
+        hour: 'numeric',
+        minute: 'numeric',
+        //second: 'numeric'
+    };
+    return new Date().toLocaleString("ru", options);
 }
