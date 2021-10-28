@@ -49,14 +49,28 @@ function checkToken(messages, ws) {
                 ws.close();
             } else {
                 /* отправка данных для добавления пользователя в чат */
-                messages['name'] = json.login;
+                usersList.set(json.id, json.login)
+                //messages['name'] = json.login;
                 messages['id'] = json.id;
-                messages['message'] = ' подключился к чату';
-                messages['_event'] = 'add_user';
-                getDataBaseMessages(messages, ws);
-                addUser(messages)
+                //messages['message'] = ' подключился к чату';
+                //messages['_event'] = 'add_user';
+                confirmUser(messages, ws);
+                //getDataBaseMessages(messages, ws);
+                //addUser(messages);
             }
         });
+}
+
+function confirmUser(messages, ws)
+{
+    const id = messages.id;
+    const fullName = usersList.get(messages.id);
+    console.log(fullName);
+    const event = 'confirm_user';
+    ws.send(JSON.stringify({
+        data: [{id, fullName}],
+        event: event
+    }, replacer));
 }
 
 function sendMessage(messages) {
@@ -76,9 +90,9 @@ function sendMessage(messages) {
 }
 
 function addUser(messages) {
-    const fullName = messages.name;
+    const fullName = usersList.get(messages.id);
     const id = messages.id;
-    const message = messages.message;
+    const message = 'подключился к чату';
     const event = messages._event;
 
     usersList.set(id, fullName);
