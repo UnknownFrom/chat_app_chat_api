@@ -1,7 +1,6 @@
 import ws from "ws";
 import mysql from "mysql2";
-import fetch from "node-fetch";
-import jwtDecode from "jwt-decode";
+import jwt from "jsonwebtoken";
 
 let connection;
 connectToBD();
@@ -38,34 +37,20 @@ function checkToken(messages, ws) {
         ws.close();
         return;
     }
-    const data = jwtDecode(token);
-    fetch('http://users.api.loc/id', {
-        method: 'POST',
-        body: JSON.stringify({id: data.id})
-    })
-        .then(response => response.json())
-        .then((json) => {
-            if (json.status === false) {
-                ws.close();
-            } else {
-                /* отправка данных для добавления пользователя в чат */
-                usersList.set(json.id, json.login)
-                //messages['name'] = json.login;
-                messages['id'] = json.id;
-                //messages['message'] = ' подключился к чату';
-                //messages['_event'] = 'add_user';
-                confirmUser(messages, ws);
-                //getDataBaseMessages(messages, ws);
-                //addUser(messages);
-            }
-        });
+    try {
+        const data = jwt.verify(token, 'qwtwetwqgbert');
+        messages['id'] = data.id;
+        messages['fullName'] = data.fullName;
+        confirmUser(messages, ws);
+    } catch (err) {
+        ws.close();
+    }
 }
 
-function confirmUser(messages, ws)
-{
+function confirmUser(messages, ws) {
     const id = messages.id;
-    const fullName = usersList.get(messages.id);
-    console.log(fullName);
+    const fullName = messages.fullName;
+    usersList.set(id, fullName)
     const event = 'confirm_user';
     ws.send(JSON.stringify({
         data: [{id, fullName}],
@@ -95,7 +80,7 @@ function addUser(messages) {
     const message = 'подключился к чату';
     const event = messages._event;
 
-    usersList.set(id, fullName);
+    //usersList.set(id, fullName);
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
             client.send(JSON.stringify({
@@ -135,8 +120,8 @@ function replacer(key, value) {
 
 function connectToBD() {
     connection = mysql.createConnection({
-        host: 'localhost',
-        port: '8989',
+        host: 'chat_app_mysqldb',
+        port: '3306',
         user: 'dev',
         database: 'chat',
         password: 'dev'
@@ -160,8 +145,7 @@ function addMessage(data) {
     });
 }
 
-function getDate()
-{
+function getDate() {
     let options = {
         //year: 'numeric',
         //month: 'numeric',
