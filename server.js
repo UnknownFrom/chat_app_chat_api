@@ -3,9 +3,9 @@ import mysql from "mysql2";
 import JWT from "jsonwebtoken";
 
 let connection;
-connectToBD();
-global.usersList = new Map();
-global.usersListCount = new Map();
+connectToBD(); /* подключение к базе данных */
+global.usersList = new Map(); /* список активных пользователей */
+global.usersListCount = new Map(); /* список открытых страниц пользователя */
 const server = new ws.Server({port: process.env.WEBSOCKET_PORT});
 
 server.on('connection', (ws) => {
@@ -32,6 +32,7 @@ server.on('connection', (ws) => {
     });
 });
 
+/* проверка токена на подлинность */
 function checkToken(messages, ws) {
     const token = messages.token;
     if (!token) {
@@ -48,29 +49,34 @@ function checkToken(messages, ws) {
     }
 }
 
+/* отправка данных о подключившемся пользователе */
 function confirmUser(messages, ws) {
     const id = messages.id;
     const fullName = messages.fullName;
     const event = 'confirm_user';
+    /* добавление в список активных пользователей */
     usersList.set(id, fullName)
-    console.log("Подтверждение " + usersListCount.get(id));
     if (usersListCount.has(id)) {
         usersListCount.set(id, usersListCount.get(id) + 1);
     } else {
         usersListCount.set(id, 1);
     }
-    console.log("Подтверждение " + usersListCount.get(id));
     ws.send(JSON.stringify({
         data: [{id, fullName}],
         event: event
     }, replacer));
 }
 
+/* отправка сообщения всем пользователям */
 function sendMessage(messages) {
     const fullName = usersList.get(messages.id);
     const message = messages.message;
+    if (message === '') {
+        return;
+    }
     const event = messages._event;
     const time = getDate();
+    /* добавление сообщения в базу */
     addMessage([fullName, message, time])
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
@@ -82,16 +88,12 @@ function sendMessage(messages) {
     });
 }
 
+/* отправка сообщения о подключении пользователя */
 function addUser(messages) {
     const fullName = usersList.get(messages.id);
     const id = messages.id;
     const message = 'подключился к чату';
     const event = messages._event;
-/*    if(usersListCount.get(id) > 1)
-    {
-        return;
-    }*/
-    //usersList.set(id, fullName);
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
             client.send(JSON.stringify({
@@ -107,14 +109,15 @@ function disconnect(messages) {
     const fullName = usersList.get(id);
     const message = messages.message;
     const event = messages._event;
-    console.log(usersListCount.get(id));
+    /* уменьшение количества открытых вкладок пользователя */
     usersListCount.set(id, usersListCount.get(id) - 1);
-    console.log(usersListCount.get(id));
     if (usersListCount.get(id) !== 0) {
         return;
     }
+    /* удаляем пользователя из активных, если не осталось вкладок */
     usersListCount.delete(id);
     usersList.delete(id);
+    /* отправляем сообщение всем об отключении данного пользователя */
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
             client.send(JSON.stringify({
@@ -136,6 +139,7 @@ function replacer(key, value) {
     }
 }
 
+/* подключение к базе данных */
 function connectToBD() {
     connection = mysql.createConnection({
         host: 'chat_app_mysqldb',
@@ -146,8 +150,11 @@ function connectToBD() {
     });
 }
 
+/* получение определённого количества записей из БД */
 function getDataBaseMessages(messages, ws) {
-    let limit = messages.limit; /* сколько на страницу выводить */
+    /* сколько на страницу выводить */
+    let limit = messages.limit;
+    /* с какой позиции выводить */
     let offset = limit * messages._offset + 1;
     let sql = 'SELECT * FROM message ORDER BY id DESC limit ?, ?';
     let data = [offset, limit]
@@ -156,6 +163,7 @@ function getDataBaseMessages(messages, ws) {
     });
 }
 
+/* добавление сообщения в БД */
 function addMessage(data) {
     getDate();
     const sql = 'INSERT INTO message (id, fullName, message, time) VALUES (NULL, ?, ?, ?)';
@@ -163,6 +171,7 @@ function addMessage(data) {
     });
 }
 
+/* получение текущей даты */
 function getDate() {
     let options = {
         timeZone: 'Europe/Moscow',
