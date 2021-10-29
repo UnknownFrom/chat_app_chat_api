@@ -1,11 +1,12 @@
 import ws from "ws";
 import mysql from "mysql2";
-import jwt from "jsonwebtoken";
+import JWT from "jsonwebtoken";
 
 let connection;
 connectToBD();
 global.usersList = new Map();
-const server = new ws.Server({port: 8000});
+global.usersListCount = new Map();
+const server = new ws.Server({port: process.env.WEBSOCKET_PORT});
 
 server.on('connection', (ws) => {
     /* обработка сообщения */
@@ -38,7 +39,7 @@ function checkToken(messages, ws) {
         return;
     }
     try {
-        const data = jwt.verify(token, 'qwtwetwqgbert');
+        const data = JWT.verify(token, process.env.TOKEN_KEY);
         messages['id'] = data.id;
         messages['fullName'] = data.fullName;
         confirmUser(messages, ws);
@@ -50,8 +51,15 @@ function checkToken(messages, ws) {
 function confirmUser(messages, ws) {
     const id = messages.id;
     const fullName = messages.fullName;
-    usersList.set(id, fullName)
     const event = 'confirm_user';
+    usersList.set(id, fullName)
+    console.log("Подтверждение " + usersListCount.get(id));
+    if (usersListCount.has(id)) {
+        usersListCount.set(id, usersListCount.get(id) + 1);
+    } else {
+        usersListCount.set(id, 1);
+    }
+    console.log("Подтверждение " + usersListCount.get(id));
     ws.send(JSON.stringify({
         data: [{id, fullName}],
         event: event
@@ -79,7 +87,10 @@ function addUser(messages) {
     const id = messages.id;
     const message = 'подключился к чату';
     const event = messages._event;
-
+/*    if(usersListCount.get(id) > 1)
+    {
+        return;
+    }*/
     //usersList.set(id, fullName);
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
@@ -96,6 +107,13 @@ function disconnect(messages) {
     const fullName = usersList.get(id);
     const message = messages.message;
     const event = messages._event;
+    console.log(usersListCount.get(id));
+    usersListCount.set(id, usersListCount.get(id) - 1);
+    console.log(usersListCount.get(id));
+    if (usersListCount.get(id) !== 0) {
+        return;
+    }
+    usersListCount.delete(id);
     usersList.delete(id);
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
@@ -122,9 +140,9 @@ function connectToBD() {
     connection = mysql.createConnection({
         host: 'chat_app_mysqldb',
         port: '3306',
-        user: 'dev',
-        database: 'chat',
-        password: 'dev'
+        user: process.env.MYSQL_USER,
+        database: process.env.MYSQL_DATABASE,
+        password: process.env.MYSQL_PASSWORD
     });
 }
 
@@ -147,6 +165,7 @@ function addMessage(data) {
 
 function getDate() {
     let options = {
+        timeZone: 'Europe/Moscow',
         //year: 'numeric',
         //month: 'numeric',
         //day: 'numeric',
