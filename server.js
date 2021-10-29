@@ -29,11 +29,38 @@ server.on('connection', (ws) => {
             case 'check_multi_window':
                 checkTokenOnWindow(messages, ws);
                 break;
+            case 'close_window':
+                closeWindow(messages, ws);
+                break;
             case 'send_page':
                 getDataBaseMessages(messages, ws);
         }
     });
 });
+
+function closeWindow(messages) {
+    const id = messages.id;
+    const fullName = usersList.get(id);
+    const message = 'отключается от чата';
+    const event = 'disconnect';
+    /* уменьшение количества открытых вкладок пользователя */
+    usersListCount.set(id, usersListCount.get(id) - 1);
+    if (usersListCount.get(id) !== 0) {
+        return;
+    }
+    /* удаляем пользователя из активных, если не осталось вкладок */
+    usersListCount.delete(id);
+    usersList.delete(id);
+    /* отправляем сообщение всем об отключении данного пользователя */
+    server.clients.forEach(client => {
+        if (client.readyState === ws.OPEN) {
+            client.send(JSON.stringify({
+                data: [{fullName, message, usersList}],
+                event: event
+            }, replacer));
+        }
+    });
+}
 
 /* проверка токена на подлинность */
 function checkTokenOnWindow(messages, ws) {
@@ -127,10 +154,7 @@ function disconnect(messages) {
     const message = messages.message;
     const event = messages._event;
     /* уменьшение количества открытых вкладок пользователя */
-    usersListCount.set(id, usersListCount.get(id) - 1);
-    if (usersListCount.get(id) !== 0) {
-        return;
-    }
+    //usersListCount.set(id, usersListCount.get(id) - 1);
     /* удаляем пользователя из активных, если не осталось вкладок */
     usersListCount.delete(id);
     usersList.delete(id);
