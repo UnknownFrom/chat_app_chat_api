@@ -153,8 +153,6 @@ function disconnect(messages) {
     const fullName = usersList.get(id);
     const message = messages.message;
     const event = messages._event;
-    /* уменьшение количества открытых вкладок пользователя */
-    //usersListCount.set(id, usersListCount.get(id) - 1);
     /* удаляем пользователя из активных, если не осталось вкладок */
     usersListCount.delete(id);
     usersList.delete(id);
@@ -196,7 +194,7 @@ function getDataBaseMessages(messages, ws) {
     /* сколько на страницу выводить */
     let limit = messages.limit;
     /* с какой позиции выводить */
-    let offset = limit * messages._offset + 1;
+    let offset = limit * messages._offset;
     let sql = 'SELECT * FROM message ORDER BY id DESC limit ?, ?';
     let data = [offset, limit]
     connection.query(sql, data, function (err, data) {
