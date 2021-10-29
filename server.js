@@ -26,11 +26,28 @@ server.on('connection', (ws) => {
             case 'check_token':
                 checkToken(messages, ws);
                 break;
+            case 'check_multi_window':
+                checkTokenOnWindow(messages, ws);
+                break;
             case 'send_page':
                 getDataBaseMessages(messages, ws);
         }
     });
 });
+
+/* проверка токена на подлинность */
+function checkTokenOnWindow(messages, ws) {
+    const token = messages.token;
+    if (!token) {
+        ws.close();
+        return;
+    }
+    try {
+        JWT.verify(token, process.env.TOKEN_KEY);
+    } catch (err) {
+        ws.close();
+    }
+}
 
 /* проверка токена на подлинность */
 function checkToken(messages, ws) {
