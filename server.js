@@ -94,10 +94,11 @@ function checkToken(messages, ws) {
 }
 
 /* отправка данных о подключившемся пользователе */
-function confirmUser(messages, ws) {
+async function confirmUser(messages, ws) {
     const id = messages.id;
     const fullName = messages.fullName;
-    const event = 'confirm_user';
+    const event = 'confirm_user'
+    messages['_event'] = 'add_user';
     /* добавление в список активных пользователей */
     usersList.set(id, fullName)
     if (usersListCount.has(id)) {
@@ -105,10 +106,13 @@ function confirmUser(messages, ws) {
     } else {
         usersListCount.set(id, 1);
     }
-    ws.send(JSON.stringify({
+    /* отправка данных пользователя для открытого окна */
+    await ws.send(JSON.stringify({
         data: [{id, fullName}],
         event: event
     }, replacer));
+    /* оповещение других пользователей о подключении */
+    addUser(messages);
 }
 
 /* отправка сообщения всем пользователям */
