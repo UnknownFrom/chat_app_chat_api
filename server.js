@@ -142,8 +142,7 @@ function addUser(messages) {
     const id = messages.id;
     let message = 'подключился к чату';
     const event = messages._event;
-    if (usersListCount.get(id) > 1)
-    {
+    if (usersListCount.get(id) > 1) {
         message = '';
     }
     server.clients.forEach(client => {
