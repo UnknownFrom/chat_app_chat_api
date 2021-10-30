@@ -136,12 +136,16 @@ function sendMessage(messages) {
     });
 }
 
-/* отправка сообщения о подключении пользователя */
+/* отправка сообщения о подключении пользователя и списка активных */
 function addUser(messages) {
     const fullName = usersList.get(messages.id);
     const id = messages.id;
-    const message = 'подключился к чату';
+    let message = 'подключился к чату';
     const event = messages._event;
+    if (usersListCount.get(id) > 1)
+    {
+        message = '';
+    }
     server.clients.forEach(client => {
         if (client.readyState === ws.OPEN) {
             client.send(JSON.stringify({
