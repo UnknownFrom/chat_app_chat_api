@@ -142,6 +142,7 @@ function addUser(messages) {
     const id = messages.id;
     let message = 'подключился к чату';
     const event = messages._event;
+    /* если у пользователя больше 1 открытой вкладки */
     if (usersListCount.get(id) > 1) {
         message = '';
     }
@@ -198,10 +199,8 @@ function connectToBD() {
 
 /* получение определённого количества записей из БД */
 function getDataBaseMessages(messages, ws) {
-    /* сколько на страницу выводить */
-    let limit = messages.limit;
-    /* с какой позиции выводить */
-    let offset = limit * messages._offset;
+    let limit = messages.limit;             /* сколько выводить на страницу */
+    let offset = limit * messages._offset;  /* с какой позиции выводить */
     let sql = 'SELECT * FROM message ORDER BY id DESC limit ?, ?';
     let data = [offset, limit]
     connection.query(sql, data, function (err, data) {
@@ -221,12 +220,12 @@ function addMessage(data) {
 function getDate() {
     let options = {
         timeZone: 'Europe/Moscow',
-        //year: 'numeric',
-        //month: 'numeric',
-        //day: 'numeric',
         weekday: 'long',
         hour: 'numeric',
         minute: 'numeric',
+        //year: 'numeric',
+        //month: 'numeric',
+        //day: 'numeric',
         //second: 'numeric'
     };
     return new Date().toLocaleString("ru", options);
