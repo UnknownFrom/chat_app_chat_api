@@ -4,8 +4,8 @@ import JWT from "jsonwebtoken";
 
 let connection;
 connectToBD(); /* подключение к базе данных */
-global.usersList = new Map(); /* список активных пользователей */
-global.usersListCount = new Map(); /* список открытых страниц пользователя */
+let usersList = new Map(); /* список активных пользователей */
+let usersListCount = new Map(); /* список открытых страниц пользователя */
 const server = new ws.Server({port: process.env.WEBSOCKET_PORT});
 
 server.on('connection', (ws) => {
